@@ -83,7 +83,7 @@ func (c ChildDeviceWrapper) AsS210() (*DeviceS210, error) {
 	if err != nil {
 		return nil, err
 	}
-	return NewDeviceS210(c.hub, data), nil
+	return NewDeviceS210(c.hub, data.DeviceId), nil
 }
 
 func (c ChildDeviceWrapper) hasDeviceId(deviceId string) (bool, error) {
