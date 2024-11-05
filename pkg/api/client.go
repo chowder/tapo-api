@@ -110,6 +110,10 @@ func (d *ApiClient) Request(method string, params interface{}) ([]byte, error) {
 		return []byte{}, err
 	}
 
+	if resp.StatusCode != 200 {
+		return []byte{}, fmt.Errorf("request exited with failed status: %d", resp.StatusCode)
+	}
+
 	buf := make([]byte, resp.ContentLength)
 	resp.Body.Read(buf)
 	decrypted, err := d.cipher.Decrypt(seq, buf)
