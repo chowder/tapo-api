@@ -20,7 +20,15 @@ type TapoHub struct {
 // NewH100 creates a new Tapo H100 device.
 func NewH100(ip, email, password string) (*TapoHub, error) {
 	client, err := api.NewClient(ip, email, password)
-	client.Login()
+	if err != nil {
+		return nil, err
+	}
+
+	err = client.Login()
+	if err != nil {
+		return nil, err
+	}
+
 	return &TapoHub{
 		client: client,
 	}, err
