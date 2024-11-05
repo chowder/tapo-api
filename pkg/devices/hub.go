@@ -35,6 +35,26 @@ func NewH200(ip, email, password string) (*TapoHub, error) {
 	}, err
 }
 
+func (t *TapoHub) ControlChild(deviceId string, method string, req interface{}) error {
+	resp, err := t.client.Request(request.RequestControlChild, request.ControlChildParams{
+		DeviceId: deviceId,
+		RequestData: struct {
+			Method string      `json:"method"`
+			Params interface{} `json:"params"`
+		}{Method: method, Params: req},
+	})
+	if err != nil {
+		return err
+	}
+
+	data, err := response.UnmarshalResponse[response.TapoResponse[interface{}]](resp)
+	if err != nil {
+		return err
+	}
+
+	return data.GetError()
+}
+
 // RefreshSession refreshes the authentication session of the client.
 func (t *TapoHub) RefreshSession() error {
 	return t.client.RefreshSession()
@@ -69,7 +89,7 @@ func (t *TapoHub) GetChildDeviceList() (ChildDeviceList, error) {
 
 	devices := []ChildDeviceWrapper{}
 	for _, rawDeviceJson := range data.Result.Devices {
-		devices = append(devices, ChildDeviceWrapper{rawDeviceJson})
+		devices = append(devices, ChildDeviceWrapper{t, rawDeviceJson})
 	}
 	return ChildDeviceList{
 		Devices: devices,

@@ -6,6 +6,16 @@ type PlayAlarmParams struct {
 	Type     string      `json:"alarm_type"`
 }
 
+type ControlChildParams struct {
+	DeviceId    string             `json:"device_id"`
+	RequestData ChildRequestParams `json:"requestData"`
+}
+
+type ChildRequestParams struct {
+	Method string      `json:"method"`
+	Params interface{} `json:"params"`
+}
+
 type AlarmVolume string
 
 const (

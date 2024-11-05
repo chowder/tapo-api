@@ -2,7 +2,6 @@ package devices
 
 import (
 	"encoding/json"
-
 	childdevices "github.com/fabiankachlock/tapo-api/pkg/api/response/child_devices"
 	tapoutil "github.com/fabiankachlock/tapo-api/pkg/util"
 )
@@ -20,6 +19,7 @@ type ChildDeviceList struct {
 }
 
 type ChildDeviceWrapper struct {
+	hub *TapoHub
 	raw []byte
 }
 
@@ -75,6 +75,15 @@ func (c ChildDeviceWrapper) AsT300() (childdevices.DeviceInfoT300, error) {
 	var data childdevices.DeviceInfoT300
 	err := json.Unmarshal(c.raw, &data)
 	return data, err
+}
+
+func (c ChildDeviceWrapper) AsS210() (*DeviceS210, error) {
+	var data childdevices.DeviceInfoS210
+	err := json.Unmarshal(c.raw, &data)
+	if err != nil {
+		return nil, err
+	}
+	return NewDeviceS210(c.hub, data), nil
 }
 
 func (c ChildDeviceWrapper) hasDeviceId(deviceId string) (bool, error) {
