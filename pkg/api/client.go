@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"net/http"
@@ -57,16 +58,19 @@ func (d *ApiClient) Login() error {
 	authHash := sha256.Sum256(append(hashedUsername[:], hashedPassword[:]...))
 
 	localSeed := make([]byte, 16)
-	rand.Read(localSeed)
+	_, err := rand.Read(localSeed)
+	if err != nil {
+		return fmt.Errorf("error generating random string: %w", err)
+	}
 
 	remoteSeed, err := d.handshake1(d.url, localSeed, authHash[:])
 	if err != nil {
-		return err
+		return fmt.Errorf("error performing handshake-1: %w", err)
 	}
 
 	err = d.handshake2(d.url, localSeed, remoteSeed, authHash[:])
 	if err != nil {
-		return err
+		return fmt.Errorf("error performaing handshake-2: %w", err)
 	}
 
 	d.cipher = klap.NewCipher(localSeed, remoteSeed, authHash[:])
@@ -114,9 +118,15 @@ func (d *ApiClient) Request(method string, params interface{}) ([]byte, error) {
 		return []byte{}, fmt.Errorf("request exited with failed status: %d", resp.StatusCode)
 	}
 
-	buf := make([]byte, resp.ContentLength)
-	resp.Body.Read(buf)
-	decrypted, err := d.cipher.Decrypt(seq, buf)
+	defer closeBody(resp.Body)
+
+	buf, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return []byte{}, err
+	}
+
+	decrypted, err := d.cipher.Decrypt(buf)
+
 	if err != nil {
 		return []byte{}, err
 	}
@@ -125,13 +135,19 @@ func (d *ApiClient) Request(method string, params interface{}) ([]byte, error) {
 }
 
 func (d *ApiClient) handshake1(url string, localSeed []byte, authHash []byte) ([]byte, error) {
-	resp, err := d.client.Post(fmt.Sprintf("%s/handshake1", url), "application/x-www-form-urlencoded", bytes.NewReader(localSeed))
+	resp, err := d.client.Post(fmt.Sprintf("%s/handshake1", url), "application/x-www-form-urlencoded", bytes.NewBuffer(localSeed))
 	if err != nil {
 		return []byte{}, err
 	}
 
-	buf := make([]byte, resp.ContentLength)
-	resp.Body.Read(buf)
+	defer closeBody(resp.Body)
+
+	buf, err := io.ReadAll(resp.Body)
+
+	if err != nil {
+		return []byte{}, fmt.Errorf("error reading response body: %s", err)
+	}
+
 	remoteSeed := buf[0:16]
 	serverHash := buf[16:]
 	localHash := sha256.Sum256(append(append(localSeed, remoteSeed...), authHash...))
@@ -145,6 +161,8 @@ func (d *ApiClient) handshake1(url string, localSeed []byte, authHash []byte) ([
 func (d *ApiClient) handshake2(url string, localSeed, remoteSeed, authHash []byte) error {
 	payload := sha256.Sum256(append(append(remoteSeed, localSeed...), authHash...))
 	resp, err := d.client.Post(fmt.Sprintf("%s/handshake2", url), "application/x-www-form-urlencoded", bytes.NewReader(payload[:]))
+	defer closeBody(resp.Body)
+
 	if err != nil {
 		return err
 	}
@@ -154,4 +172,11 @@ func (d *ApiClient) handshake2(url string, localSeed, remoteSeed, authHash []byt
 		return errors.New("handshake 2 failed")
 	}
 	return nil
+}
+
+func closeBody(body io.ReadCloser) {
+	err := body.Close()
+	if err != nil {
+		log.Printf("unable to close reader: %s", err)
+	}
 }

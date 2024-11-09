@@ -32,14 +32,19 @@ type DeviceInfoHub struct {
 }
 
 type ChildDeviceComponentList struct {
-	Devices []ChildDeviceComponent
-	Start   int32
-	Sum     uint32
+	Devices []ChildDevice `json:"child_component_list"`
+	Start   int32         `json:"start_index"`
+	Sum     uint32        `json:"sum"`
+}
+
+type ChildDevice struct {
+	ComponentList []ChildDeviceComponent `json:"component_list"`
+	DeviceId      string                 `json:"device_id"`
 }
 
 type ChildDeviceComponent struct {
-	Id      string
-	VerCode int
+	Id      string `json:"id"`
+	Version int    `json:"version"`
 }
 
 type AlarmsList struct {
